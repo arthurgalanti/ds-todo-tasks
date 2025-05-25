@@ -1,0 +1,54 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "SAP@ssw0rd"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    networks:
+      - dstodotasks-network
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-S", "localhost", "-U", "sa", "-P", "SAP@ssw0rd", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  api:
+    container_name: api
+    build:
+      context: ./server/src
+      dockerfile: DS.TodoTasks.API/Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - dstodotasks-network
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Local
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./client
+      dockerfile: ./Dockerfile
+    ports:
+      - "3000:80"
+    networks:
+      - dstodotasks-network
+    environment:
+      - NODE_ENV=production
+
+networks:
+  dstodotasks-network:
+    driver: bridge
+
+volumes:
+  sqlserver-data:
